@@ -31,7 +31,7 @@ import reactor.core.test.TestSubscriber;
  */
 public class Part09BlockingToReactive {
 
-//========================================================================================
+	//========================================================================================
 
 	@Test
 	public void slowPublisherFastSubscriber() {
@@ -49,16 +49,18 @@ public class Part09BlockingToReactive {
 
 	// TODO Create a Flux for reading all users from the blocking repository, and run it with a scheduler suitable for slow tasks without blocking the main thread
 	Flux<User> blockingRepositoryToFlux(BlockingRepository<User> repository) {
-		return null;
+		return Flux.defer(() -> Flux.fromIterable(repository.findAll()))
+				.subscribeOn(Computations.concurrent());
 	}
 
-//========================================================================================
+	//========================================================================================
 
 	@Test
 	public void fastPublisherSlowSubscriber() {
 		ReactiveRepository<User> reactiveRepository = new ReactiveUserRepository();
-		BlockingRepository<User> blockingRepository = new BlockingUserRepository(new User[]{});
+		BlockingUserRepository blockingRepository = new BlockingUserRepository(new User[]{});
 		Mono<Void> complete = fluxToBlockingRepository(reactiveRepository.findAll(), blockingRepository);
+		assertEquals(0, blockingRepository.getCallCount());
 		TestSubscriber<Void> testSubscriber = new TestSubscriber<>();
 		testSubscriber
 				.bindTo(complete)
@@ -75,10 +77,13 @@ public class Part09BlockingToReactive {
 
 	// TODO Insert users contained in the Flux parameter in the blocking repository using an scheduler factory suitable for fast tasks
 	Mono<Void> fluxToBlockingRepository(Flux<User> flux, BlockingRepository<User> repository) {
-		return null;
+		return flux
+				.publishOn(Computations.parallel())
+				.doOnNext(user -> repository.save(user))
+				.after();
 	}
 
-//========================================================================================
+	//========================================================================================
 
 	@Test
 	public void nullHandling() {
@@ -98,7 +103,7 @@ public class Part09BlockingToReactive {
 
 	// TODO Return a valid Mono of user for null input and non null input user (hint: Reactive Streams does not accept null values)
 	Mono<User> nullAwareUserToMono(User user) {
-		return null;
+		return Mono.justOrEmpty(user);
 	}
 
 }
